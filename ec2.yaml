@@ -1,0 +1,69 @@
+# Create AWS CloudFormation stack yaml for EC2 Instance
+AWSTemplateFormatVersion: '2010-09-09'
+Description: AWS CloudFormation template to create an EC2 instance with an Amazon Linux 2 AMI.
+Parameters:
+
+  InstanceType:
+    Description: EC2 instance type
+    Type: String
+    Default: t2.micro
+    AllowedValues:
+      - t2.micro
+      - t2.small
+    ConstraintDescription: Must be either t2.micro or t2.small.
+
+  KeyName:
+    Description: Name of an existing EC2 KeyPair to enable SSH access to the instance
+    Type: AWS::EC2::KeyPair::KeyName
+    ConstraintDescription: Must be the name of an existing EC2 KeyPair. # ConstraintDescription is an optional property to provide a more user-friendly error message if someone enters an invalid value for a parameter when deploying your stack.
+
+  MyIP:
+    Description: Your IP address to allow SSH access.
+    Type: String
+    Default: 0.0.0.0/0 # WARNING: Change this to your actual IP address in the format x.x.x.x/32 for security.
+    ConstraintDescription: Must be a valid IP CIDR range.
+  
+  LatestAmiId:
+    Type: 'AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>'
+    Default: '/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2'
+
+Resources:
+  MySecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Enable SSH access via port 22
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: !Ref MyIP
+      Tags:
+        - Key: Name
+          Value: my-instance-sg
+
+  myec2:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: !Ref InstanceType
+      KeyName: !Ref KeyName
+      ImageId: !Ref LatestAmiId # This will get the latest Amazon Linux 2 AMI in the region you deploy to
+      SecurityGroupIds:
+        - !Ref MySecurityGroup
+      Tags:
+        - Key: Name
+          Value: myec2
+
+Outputs:
+  InstanceId:
+    Description: The Instance ID of the newly created EC2 instance.
+    Value: !Ref myec2
+
+   # IP address you use to connect to your instance from the internet via SSH.
+  PublicIP:
+    Description: The Public IP address of the newly created EC2 instance.
+    Value: !GetAtt myec2.PublicIp
+    
+  # DNS hostname that AWS provides, which resolves to your public IP address
+  PublicDNS: 
+    Description: The Public DNS name of the newly created EC2 instance.
+    Value: !GetAtt myec2.PublicDnsName          
